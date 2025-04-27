@@ -93,8 +93,8 @@ cast call 0x2825394600414ff582f89ff5791ecc2361b2c613 "getPrevWinners()" --rpc-ur
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/Lisk-BootCamp-Task1.git
-   cd Lisk-BootCamp-Task1
+   git clone https://github.com/oumaoumag/LotteryGame.git
+   cd LotteryGame
    ```
 
 2. Install dependencies:
@@ -140,4 +140,4 @@ To deploy the contract to a network:
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -2,12 +2,10 @@
 pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
-import "../src/SampleGame.sol"; // change SampleGame to LotteryGame
+import "../src/LotteryGame.sol"; 
 
-contract SampleGameTest is
-    Test // change SampleGame to LotteryGame
-{
-    SampleGame public game; // change SampleGame to LotteryGame
+contract LotteryGameTest is Test {
+    LotteryGame public game; 
     address public owner;
     address public player1;
     address public player2;
@@ -24,7 +22,7 @@ contract SampleGameTest is
         vm.deal(player2, 1 ether);
         vm.deal(player3, 1 ether);
 
-        game = new SampleGame(); // change SampleGame to LotteryGame
+        game = new LotteryGame(); 
     }
 
     function testRegisterWithCorrectAmount() public {

@@ -1,8 +1,8 @@
-# Solidity Smart Contract Assignment: LotteryGame
+# Lisk Bootcamp Task 1: LotteryGame Smart Contract
 
 ## Overview
 
-In this assignment, you will implement a simple Ethereum-based lottery game where players can register, make guesses, and potentially win ETH prizes. This exercise will help you practice Solidity development fundamentals including:
+This project implements a simple Ethereum-based lottery game where players can register, make guesses, and potentially win ETH prizes. The LotteryGame smart contract demonstrates Solidity development fundamentals including:
 
 - State variables and data structures
 - Function implementation
@@ -13,44 +13,20 @@ In this assignment, you will implement a simple Ethereum-based lottery game wher
 ## Project Structure
 
 ```
-lottery-game/
+Lisk-BootCamp-Task1/
 ├── src/
 │   └── LotteryGame.sol       # Main contract implementation
-└── test/
-    └── LotteryGame.t.sol     # Foundry tests
+├── test/
+│   └── LotteryGame.t.sol     # Foundry tests
+└── script/
+    └── LotteryGame.s.sol     # Deployment script
 ```
 
-## Assignment Tasks
+## Contract Details
 
-### 1. Implement the LotteryGame Contract
+The `LotteryGame` contract implements a lottery system with the following features:
 
-**Clone the Repository:**
-- Clone this repository to your local machine:
-    ```
-     git clone <repository-url>
-     ```
-
-- Move into the project directory:
-    ```
-    cd <repository-name>
-    ```
-
-You need to complete the implementation of the `LotteryGame.sol` contract by filling in all the TODOs:
-
-- Declare state variables for tracking player information, prizes, and winners
-- Implement the event declarations
-- Complete the `register()` function to allow players to join the game
-- Implement the `guessNumber()` function for players to make guesses
-- Complete the `distributePrizes()` function to handle prize distribution
-- Implement the `getPrevWinners()` function to view previous winners
-
-### 2. Fix the Test File
-
-- Rename all instances of `SampleGame` to `LotteryGame` in the test file
-- Ensure the import path correctly points to your implementation
-- If needed, implement any additional test cases to ensure full coverage
-
-## Game Rules
+### Game Rules
 
 1. Players must stake exactly 0.02 ETH to register
 2. Each player can make up to 2 guesses
@@ -59,25 +35,74 @@ You need to complete the implementation of the `LotteryGame.sol` contract by fil
 5. Prizes are distributed equally among all winners
 6. After distribution, the game state is reset for a new round
 
-## Implementation Requirements
+### Key Functions
 
-### LotteryGame.sol
+- `register()`: Allows players to join the game by staking 0.02 ETH
+- `guessNumber(uint256 guess)`: Allows registered players to make guesses
+- `distributePrizes()`: Distributes prizes to winners and resets the game
+- `getPrevWinners()`: Returns a list of previous winners
+- `totalPrize()`: Returns the current prize pool amount
 
-Your implementation should include:
+### Events
 
-- A `Player` struct with `attempts` and `active` properties
-- Mappings and arrays to track player information and game state
-- Events for important game actions
-- Functions for registration, guessing, and prize distribution
-- A simple random number generator
+- `PlayerRegistered`: Emitted when a player registers
+- `GuessSubmitted`: Emitted when a player submits a guess
+- `WinnerSelected`: Emitted when a winner receives a prize
+- `GameReset`: Emitted when the game state is reset
 
-### Important Notes
+## Deployment Information
 
-- The `_generateRandomNumber()` function is already provided
-- This is a simplified implementation that uses block properties for randomness
-- For a production environment, a more secure random number generator would be required
+The contract has been deployed to the Lisk Sepolia testnet at:
 
-## Testing
+```
+Contract Address: 0x2825394600414ff582f89ff5791ecc2361b2c613
+```
+
+You can interact with the contract through the Lisk Sepolia RPC endpoint:
+```
+https://rpc.sepolia-api.lisk.com
+```
+
+## How to Interact with the Contract
+
+### Using Foundry
+
+You can interact with the deployed contract using Foundry's `cast` command:
+
+```bash
+# Register as a player
+cast send 0x2825394600414ff582f89ff5791ecc2361b2c613 "register()" --value 0.02ether --rpc-url https://rpc.sepolia-api.lisk.com --private-key YOUR_PRIVATE_KEY
+
+# Make a guess (e.g., guessing the number 5)
+cast send 0x2825394600414ff582f89ff5791ecc2361b2c613 "guessNumber(uint256)" 5 --rpc-url https://rpc.sepolia-api.lisk.com --private-key YOUR_PRIVATE_KEY
+
+# Distribute prizes
+cast send 0x2825394600414ff582f89ff5791ecc2361b2c613 "distributePrizes()" --rpc-url https://rpc.sepolia-api.lisk.com --private-key YOUR_PRIVATE_KEY
+
+# View previous winners
+cast call 0x2825394600414ff582f89ff5791ecc2361b2c613 "getPrevWinners()" --rpc-url https://rpc.sepolia-api.lisk.com
+```
+
+## Development
+
+### Prerequisites
+
+- [Foundry](https://book.getfoundry.sh/getting-started/installation)
+
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/Lisk-BootCamp-Task1.git
+   cd Lisk-BootCamp-Task1
+   ```
+
+2. Install dependencies:
+   ```bash
+   forge install
+   ```
+
+### Testing
 
 Run the tests using Foundry:
 
@@ -85,8 +110,7 @@ Run the tests using Foundry:
 forge test
 ```
 
-Ensure all tests pass before submitting your assignment. The tests verify that:
-
+The tests verify that:
 1. Players can register with the correct amount
 2. Registration fails with incorrect amounts
 3. Guesses work within valid ranges
@@ -94,24 +118,26 @@ Ensure all tests pass before submitting your assignment. The tests verify that:
 5. Players are limited to two attempts
 6. Prizes cannot be distributed when there are no winners
 
-## Evaluation Criteria
+### Deployment
 
-Your implementation will be evaluated based on:
+To deploy the contract to a network:
 
-1. **Correctness**: All functions work as intended and pass the provided tests
-2. **Code Quality**: Clean, well-documented, and efficient code
-3. **Security**: Proper validation and error handling
-4. **Gas Efficiency**: Optimized operations where possible
+1. Create a `.env` file with your private key:
+   ```
+   PRIVATE_KEY=your_private_key_here
+   ```
 
-## Hints
+2. Run the deployment script:
+   ```bash
+   forge script script/LotteryGame.s.sol:DeployScript --rpc-url https://rpc.sepolia-api.lisk.com --broadcast --verify
+   ```
 
-- Make sure all state variables are appropriately initialized
-- Use proper access control for internal functions
-- Remember to emit events at the appropriate times
-- Consider edge cases in your implementation
+## Security Considerations
 
-## Submission
+- The contract uses a simplified random number generator based on block properties, which is not secure for production use
+- For a production environment, a more secure random number generator (like Chainlink VRF) would be required
+- The contract does not have an owner or admin role, so there's no way to pause or upgrade it
 
-Submit both your completed `LotteryGame.sol` contract and the fixed test file. Make sure your code compiles without errors and passes all the provided tests.
+## License
 
-Good luck!
+This project is licensed under the MIT License.

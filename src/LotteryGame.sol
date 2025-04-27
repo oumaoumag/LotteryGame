@@ -1,170 +1,160 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /**
  * @title LotteryGame
- * @dev A simple number guessing game where players can win ETH prizes
+ * @dev A simple Ethereum-based lottery game where players can:
+ * - Register by paying 0.02 ETH
+ * - Make up to 2 guesses between 1-9
+ * - Win prizes if they guess correctly
  */
 contract LotteryGame {
-
+    /// @dev Struct to store player information
     struct Player {
-        uint256 attempts;
-        bool active;
+        uint8 attempts;    // Number of guesses made
+        bool active;       // Whether player is registered
     }
 
-    event PlayerRegistered(address player, uint256 amount);
-    event GuessResult(address player, uint256 guess, bool correct);
-    event PrizeDistributed(address[] winners, uint256 prizePerWinner);
-
-    // This mapping connects Ethereum addresses to Player information
-    mapping(address => Player) public players;
-
-    // Keep track of all player addresses that have registerd 
-    address[] public playerAddresses;
-
-    // Keeps track of total ETH in the prize pool
-    uint256 public totalPrize;
-
-    // Array of addresses that won in the current round
-    address[] public currentWinners;
-
-    // Historical record of winners from previous rounds
-    address[] public previousWinners;
+    // Constants
+    uint256 public constant REGISTRATION_FEE = 0.02 ether;
+    uint8 public constant MAX_ATTEMPTS = 2;
+    uint8 public constant MAX_NUMBER = 9;
     
-    /**
-     * @dev Register to play the game
-     * Players must stake exactly 0.02 ETH to participate
-     */
-    function register() public payable {
-        // Required amount check
-        uint256 requiredAmount = 0.02 ether;
-        require(msg.value == requiredAmount, "Please stake 0.02 ETH");
+    // State Variables
+    mapping(address => Player) public players;
+    address[] public activePlayers;
+    address[] public winners;
+    uint256 public totalPrizePool;  // Renamed from prizePool
+    bool private _distributing;
 
-        // Double registration check
-        require(!players[msg.sender].active, "Player already registered");
-
-        // creating player record if new
-        players[msg.sender] = Player({
-            attempts: 0,
-            active: true
-        });
-
-        // Tracking players
-        playerAddresses.push(msg.sender);
-
-        // Prize pool update
-        totalPrize += msg.value;
-
-        // event emission
-        emit PlayerRegistered(msg.sender, msg.value);
-    }                  
+    // Events
+    event PlayerRegistered(address indexed player);
+    event GuessSubmitted(address indexed player, uint256 guess);
+    event WinnerSelected(address indexed winner, uint256 prize);
+    event GameReset();
 
     /**
-     * @dev Make a guess between 1 and 9
-     * @param guess The player's guess
+     * @dev Register a new player in the game
+     * @notice Players must send exactly 0.02 ETH to register
+     * Requirements:
+     * - Exact registration fee must be paid
+     * - Player must not be already registered
      */
-    function guessNumber(uint256 guess) public {
-        // Get player.s current state
-        Player storage player = players[msg.sender];
-
-        // Validate player is registered
-        require(player.active, "Player is not active");
-
-        // Check if player has attempts remaining
-        require(player.attempts < 2, "Player has already made 2 attempts");
-
-        // Validate guess is with within range
-        require(guess >= 1 && guess <= 9, "Number must be between 1 and 9");
-
-        // Generate winning number and compare
-        uint256 winningNumber = _generateRandomNumber();
-        bool hasWon = (guess == winningNumber);
-
-        // Increment attempts
-        player.attempts += 1;
-
-        // If player won, add to winners list
-        if (hasWon && !_isPlayerInWinners(msg.sender)) {
-            currentWinners.push(msg.sender);
-        }
-
-        // emit result
-        emit GuessResult(msg.sender, guess, hasWon);
-    }
-
-    /**
-     * @dev Internal helper to check if player is already in winners list
-     * @param playerAddress Address to check
-     * @return boll True if player is already in winners list
-     */
-    function _isPlayerInWinners(address playerAddress) internal view returns (bool) {
-        for (uint256 i = 0; i < currentWinners.length; i++) {
-            if (currentWinners[i] == playerAddress) {
-            return true;
-            } 
-        }
-        return false;
-    } 
-
-    /**
-     * @dev Distribute prizes to winners
-     */
-    function distributePrizes() public {     
-        // Check if we have any winners
-        require(currentWinners.length > 0, "No winners to distribute prizes to");
-
-        // Calculate prize per winner
-        uint256 prizePerWinner = totalPrize / currentWinners.length;
-
-        // Store current winners for event emission
-        address[] memory winners = currentWinners;
+    function register() external payable {
+        require(msg.value == REGISTRATION_FEE, "Please stake 0.02 ETH");
+        require(!players[msg.sender].active, "Already registered");
         
-        // Transfer prizes and handler failures
-        for (uint256 i = 0; i < currentWinners.length; i++) {
-            address winner = currentWinners[i];
-
-            // Reset player state 
-            players[winner].attempts = 0;
-            players[winner].active = false;
-
-            // Transfer prize using call
-            (bool success,) = winner.call{value: prizePerWinner}("");
-            require(success, "Prize transfer failed");
-        }
-
-        // Update game state
-        for (uint256 i = 0; i < playerAddresses.length; i++) {
-            delete players[playerAddresses[i]];
-        }
-
-        // Store winners in history
-        for (uint256 i = 0; i < currentWinners.length; i++) {
-            previousWinners.push(currentWinners[i]);
-        }
-
-        // Reset game state
-        delete playerAddresses;
-        delete currentWinners;
-        totalPrize = 0;
-
-        // Emit event
-        emit PrizeDistributed(winners, prizePerWinner);
+        players[msg.sender] = Player(0, true);
+        activePlayers.push(msg.sender);
+        totalPrizePool += msg.value;
+        
+        emit PlayerRegistered(msg.sender);
     }
 
     /**
-     * @dev View function to get previous winners
-     * @return Array of previous winner addresses
+     * @dev Submit a guess for the lottery
+     * @param guess The number guessed by the player (1-9)
+     * Requirements:
+     * - Player must be registered
+     * - Player must have attempts remaining
+     * - Guess must be within valid range
      */
-    function getPrevWinners() public view returns (address[] memory) {
-        return previousWinners;
+    function guessNumber(uint256 guess) external {
+        Player storage player = players[msg.sender];
+        
+        require(player.active, "Player is not active");
+        require(player.attempts < MAX_ATTEMPTS, "Player has already made 2 attempts");
+        require(guess >= 1 && guess <= MAX_NUMBER, "Number must be between 1 and 9");
+
+        uint256 winningNumber = _generateRandomNumber();
+        if (guess == winningNumber) {
+            winners.push(msg.sender);
+        }
+
+        player.attempts++;
+        
+        emit GuessSubmitted(msg.sender, guess);
     }
 
     /**
-     * @dev Helper function to generate a "random" number
-     * @return A uint between 1 and 9
-     * NOTE: This is not secure for production use!
+     * @dev Distribute prizes to winners and reset the game
+     * Requirements:
+     * - Must have at least one winner
+     * - Distribution must not be in progress
+     */
+    function distributePrizes() external {
+        require(!_distributing, "Distribution in progress");
+        require(winners.length > 0, "No winners to distribute prizes to");
+        _distributing = true;
+
+        uint256 currentPrize = address(this).balance;
+        uint256 prizePerWinner = currentPrize / winners.length;
+        
+        address[] memory winnersToReceive = winners;
+        _resetGame();
+
+        for (uint256 i = 0; i < winnersToReceive.length; i++) {
+            address winner = winnersToReceive[i];
+            (bool success, ) = winner.call{value: prizePerWinner}("");
+            require(success, "Prize transfer failed");
+            emit WinnerSelected(winner, prizePerWinner);
+        }
+
+        _distributing = false;
+    }
+
+    /**
+     * @dev Get list of previous winners
+     * @return Array of winner addresses
+     */
+    function getPrevWinners() external view returns (address[] memory) {
+        return winners;
+    }
+
+    /**
+     * @dev Get total prize pool amount
+     * @return Current balance of the contract
+     */
+    function totalPrize() public view returns (uint256) {
+        return address(this).balance;
+    }
+
+    /**
+     * @dev Generate a pseudo-random number between 1 and 9
+     * @return Random number
+     * @notice Not secure for production use - uses block data for randomness
      */
     function _generateRandomNumber() internal view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender))) % 9 + 1;
+    }
+    
+    /**
+     * @dev Check if all registered players have used their attempts
+     * @return bool indicating if all players have finished
+     */
+    function _allPlayersFinished() internal view returns (bool) {
+        for (uint256 i = 0; i < activePlayers.length; i++) {
+            if (players[activePlayers[i]].attempts < MAX_ATTEMPTS) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @dev Reset game state for next round
+     * @notice Clears all players, winners, and prize pool
+     */
+    function _resetGame() internal {
+        totalPrizePool = 0;
+        
+        for (uint256 i = 0; i < activePlayers.length; i++) {
+            delete players[activePlayers[i]];
+        }
+        
+        delete activePlayers;
+        delete winners;
+        
+        emit GameReset();
     }
 }
